@@ -1,5 +1,5 @@
 :- use_module(library(pio)).
-:- use_module(library(clpfd)).
+:- use_module(library(clpfd), [transpose/2]).
 :- use_module(library(assoc)).
 
 % test {{{
@@ -40,6 +40,10 @@ test :-
 % }}}
 
 % Definite clause grammar {{{
+white --> [W], { nonvar(W), code_type(W, space), \+ code_type(W, newline) }.
+whites --> white, !, whites.
+whites --> [].
+
 blank --> [C], { nonvar(C), code_type(C, space) }.
 blanks --> blank, !, blanks.
 blanks --> [].
@@ -65,7 +69,7 @@ crate(C) -->
 
 crates_line([L|Ls]) --> crate(L), crates_line_(Ls).
 crates_line_([L|Ls]) --> " ", crate(L), !, crates_line_(Ls).
-crates_line_([]), [0'\n] --> "\n".
+crates_line_([]) --> whites, (eol | eos).
 
 cargo(Ls) -->
   crates_line(L), cargo_(Ls0),
@@ -78,20 +82,21 @@ cargo_([]) --> [].
 
 name(I) --> " ", integer(I), " ".
 
-names([I|Is]) --> name(I), names_(Is), (eol|eos).
+names([I|Is]) --> name(I), names_(Is), whites, (eol | eos).
 names_([I|Is]) --> " ", name(I), !, names_(Is).
 names_([]) --> [].
 
-rule((A * C1 -> C2)) -->
+rule(A * C1 -> C2) -->
   "move ", integer(A),
   " from ", integer(C1),
-  " to ", integer(C2).
+  " to ", integer(C2),
+  whites, (eos | eol).
 
 rules([R|Rs]) --> rule(R), rules_(Rs).
 rules_([R|Rs]) --> nl, rule(R), !, rules_(Rs).
 rules_([]) --> [].
 
-parse((Cargo -> Rules)) -->
+parse(Cargo -> Rules) -->
   cargo(Cargo0), nl, names(Names), !,
   { pairs_keys_values(Cargo1, Names, Cargo0),
     list_to_assoc(Cargo1, Cargo) },
@@ -108,6 +113,25 @@ compact([H|T], Acc0, Res) :-
   ),
   compact(T, Acc, Res).
 
+first_from_all(Cargo, Res) :-
+  assoc_to_values(Cargo, Vs),
+  first_from_all_(Vs, [], Res).
+
+first_from_all_([], Res, Res) :- !.
+first_from_all_([H|T], Acc0, Res) :-
+  (   [X|_] = H
+  ->  append(Acc0, [X], Acc)
+  ;   Acc = Acc0
+  ),
+  first_from_all_(T, Acc, Res).
+
+apply(Cargo, [], _, Res) :- !,
+  first_from_all(Cargo, Res0),
+  atom_chars(Res, Res0).
+apply(Cargo0, [Times * L1 -> L2|Rules], Move, Res) :-
+  call(Move, Cargo0, Times, L1, L2, Cargo),
+  apply(Cargo, Rules, Move, Res).
+
 move1(Res, 0, _, _, Res) :- !.
 move1(Cargo0, N0, L1, L2, Res) :-
   get_assoc(L1, Cargo0, [Crate|NewL1]),
@@ -121,38 +145,19 @@ move1(Cargo0, N0, L1, L2, Res) :-
 
   move1(Cargo, N, L1, L2, Res).
 
-first_from_all(Cargo, Res) :-
-  assoc_to_values(Cargo, Vs),
-  first_from_all_(Vs, [], Res).
-
-first_from_all_([], Res, Res) :- !.
-first_from_all_([H|T], Acc0, Res) :-
-  (   [X|_] = H
-  ->  append(Acc0, [X], Acc)
-  ;   Acc = Acc0
-  ),
-  first_from_all_(T, Acc, Res).
-
 move2(Cargo0, N, L1, L2, Res) :-
   get_assoc(L1, Cargo0, OldL1),
   get_assoc(L2, Cargo0, OldL2),
 
   length(Buf, N),
   once(append(Buf, NewL1, OldL1)),
-  once(append(Buf, OldL2, NewL2)),
+  append(Buf, OldL2, NewL2),
 
   put_assoc(L1, Cargo0, NewL1, Cargo1),
   put_assoc(L2, Cargo1, NewL2, Res).
 
-apply(Cargo, [], _, Res) :- !,
-  first_from_all(Cargo, Res0),
-  atom_chars(Res, Res0).
-apply(Cargo0, [(Times * L1 -> L2)|Rules], Move, Res) :-
-  call(Move,Cargo0, Times, L1, L2, Cargo),
-  apply(Cargo, Rules, Move, Res).
-
-solve1((Cargo -> Rules), Res) :- apply(Cargo, Rules, move1, Res).
-solve2((Cargo -> Rules), Res) :- apply(Cargo, Rules, move2, Res).
+solve1(Cargo -> Rules, Res) :- apply(Cargo, Rules, move1, Res).
+solve2(Cargo -> Rules, Res) :- apply(Cargo, Rules, move2, Res).
 
 input(Data) :-
   phrase_from_file(parse(Data), "inputs/5.txt").
