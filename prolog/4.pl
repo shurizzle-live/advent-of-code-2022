@@ -53,7 +53,7 @@ range(Start:End) --> integer(Start), "-", integer(End).
 integer(I) -->
   digit(C), integer0(Cs),
   { number_codes(I, [C|Cs]) }.
-integer0([C|Cs]) --> digit(C), integer0(Cs), !.
+integer0([C|Cs]) --> digit(C), !, integer0(Cs).
 integer0([]) --> [].
 
 digit(C) --> [C], { nonvar(C), code_type(C, digit) }.
