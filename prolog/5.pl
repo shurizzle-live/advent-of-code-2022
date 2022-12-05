@@ -1,6 +1,7 @@
 :- use_module(library(pio)).
 :- use_module(library(clpfd), [transpose/2]).
 :- use_module(library(assoc)).
+:- use_module(library(yall)).
 
 % test {{{
 test_data("    [D]   \x20
@@ -74,9 +75,7 @@ crates_line_([]) --> whites, (eol | eos).
 cargo(Ls) -->
   crates_line(L), cargo_(Ls0),
   { transpose([L|Ls0], Ls2),
-    length(Ls2, Len),
-    length(Ls, Len),
-    maplist(compact, Ls2, Ls) }.
+    maplist(exclude(=(nil)), Ls2, Ls) }.
 cargo_([L|Ls]) --> nl, crates_line(L), !, cargo_(Ls).
 cargo_([]) --> [].
 
@@ -103,34 +102,16 @@ parse(Cargo -> Rules) -->
   nl, nl, rules(Rules), blanks.
 % }}}
 
-compact(L, Res) :-
-  compact(L, [], Res).
-compact([], Res, Res) :- !.
-compact([H|T], Acc0, Res) :-
-  (   H == nil
-  ->  Acc = Acc0
-  ;   append(Acc0, [H], Acc)
-  ),
-  compact(T, Acc, Res).
-
 first_from_all(Cargo, Res) :-
   assoc_to_values(Cargo, Vs),
-  first_from_all_(Vs, [], Res).
+  maplist(nth0(0), Vs, Res).
 
-first_from_all_([], Res, Res) :- !.
-first_from_all_([H|T], Acc0, Res) :-
-  (   [X|_] = H
-  ->  append(Acc0, [X], Acc)
-  ;   Acc = Acc0
-  ),
-  first_from_all_(T, Acc, Res).
-
-apply(Cargo, [], _, Res) :- !,
-  first_from_all(Cargo, Res0),
+apply(Cargo, Rules, Move, Res) :-
+  foldl(
+    {Move}/[Times * L1 -> L2, Cargo0, O]>>call(Move, Cargo0, Times, L1, L2, O),
+    Rules, Cargo, Cargo1),
+  first_from_all(Cargo1, Res0),
   atom_chars(Res, Res0).
-apply(Cargo0, [Times * L1 -> L2|Rules], Move, Res) :-
-  call(Move, Cargo0, Times, L1, L2, Cargo),
-  apply(Cargo, Rules, Move, Res).
 
 move1(Res, 0, _, _, Res) :- !.
 move1(Cargo0, N0, L1, L2, Res) :-
