@@ -73,10 +73,6 @@ indexes((I0, X), Acc0, Acc) :-
 solve1(Data, Res) :-
   foldall(indexes, (I,X), run(Data, I, X), 0, Res).
 
-replace0(I, L, E, K) :-
-  nth0(I, L, _, R),
-  nth0(I, K, E, R).
-
 write_canvas((I0, X), Canvas0, Canvas) :-
   Pos is I0 mod 40,
   (   Start is max(0, X-1),

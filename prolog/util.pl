@@ -1,4 +1,4 @@
-:- module(util, [foldall/5, foldl1/3]).
+:- module(util, [foldall/5, foldl1/3, replace0/4]).
 
 :- use_module(library(lists)).
 
@@ -19,3 +19,7 @@ foldall(Reducer, Template, Goal, V0, V) :-
 
 foldl1(Goal, [V0|List], V) :-
   foldl(Goal, List, V0, V).
+
+replace0(I, L, E, K) :-
+  nth0(I, L, _, R),
+  nth0(I, K, E, R).
