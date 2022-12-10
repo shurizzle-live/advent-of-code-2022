@@ -128,4 +128,4 @@ solution :-
   solve1(Data, One),
   format("Solution 1: ~w~n", [One]),
   solve2(Data, Two),
-  format("Solution 1: ~w~n", [Two]).
+  format("Solution 2: ~w~n", [Two]).
