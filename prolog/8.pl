@@ -38,11 +38,7 @@ split_at(Xs, Pos, A, B) :-
   L2 is L-Pos,
   length(A, L1),
   length(B, L2),
-  length(C, 1),
-  once((
-    append(A, C, T),
-    append(T, B, Xs)
-  )).
+  once(append([A,_,B], Xs)).
 
 solve1(Data, Res) :-
   nth0(0, Data, L0),
