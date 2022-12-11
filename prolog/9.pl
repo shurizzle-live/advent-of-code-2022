@@ -53,14 +53,6 @@ parse_([I|Is]) --> nl, instruction(I), !, parse_(Is).
 parse_([]) --> [].
 % }}}
 
-unroll_instructions([(D * T)|_], Dir) :- unroll_instructions_(D, T, Dir).
-unroll_instructions([_|Rest], Dir) :- unroll_instructions(Rest, Dir).
-unroll_instructions_(_, 0, _) :- !, fail.
-unroll_instructions_(D, _, D).
-unroll_instructions_(D, T0, Dir) :-
-  T is T0-1,
-  unroll_instructions_(D, T, Dir).
-
 move((X0, Y), up,    (X, Y)) :- !, X is X0+1.
 move((X0, Y), down,  (X, Y)) :- !, X is X0-1.
 move((X, Y0), left,  (X, Y)) :- !, Y is Y0-1.
@@ -89,6 +81,14 @@ evolve(Dir, (Pos20, Pos100, [H0|Points0]), (Pos2, Pos10, Points)) :-
   ord_add_element(Pos20, P2, Pos2),
   ord_add_element(Pos100, P10, Pos10).
 
+fold_instructions(_, [], Value, Value) :- !.
+fold_instructions(Goal, [(_ * 0)|R], V0, Value) :- !,
+  fold_instructions(Goal, R, V0, Value).
+fold_instructions(Goal, [(D * T0)|R], V0, Value) :-
+  call(Goal, D, V0, V1),
+  T is T0 - 1,
+  fold_instructions(Goal, [(D * T)|R], V1, Value).
+
 make_state(P, Knots, State) :-
   length(Ns, Knots),
   maplist(=(P), Ns),
@@ -98,12 +98,12 @@ initial_state(State) :- make_state((0, 0), 10, State).
 
 solve1(Data, Res) :-
   initial_state(S0),
-  foldall(evolve, Dir, unroll_instructions(Data, Dir), S0, (Pos, _, _)),
+  fold_instructions(evolve, Data, S0, (Pos, _, _)),
   length(Pos, Res).
 
 solve2(Data, Res) :-
   initial_state(S0),
-  foldall(evolve, Dir, unroll_instructions(Data, Dir), S0, (_, Pos, _)),
+  fold_instructions(evolve, Data, S0, (_, Pos, _)),
   length(Pos, Res).
 
 input(Data) :-
@@ -113,7 +113,7 @@ solution :-
   input(Data),
 
   initial_state(S0),
-  foldall(evolve, Dir, unroll_instructions(Data, Dir), S0, (Pos2, Pos10, _)),
+  fold_instructions(evolve, Data, S0, (Pos2, Pos10, _)),
   length(Pos2, One),
   length(Pos10, Two),
 
